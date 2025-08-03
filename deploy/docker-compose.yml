@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: launchpad_postgres
+    environment:
+      POSTGRES_DB: launchpad
+      POSTGRES_USER: launchpad
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U launchpad"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: launchpad_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  hardhat:
+    build:
+      context: ./smart-contracts
+      dockerfile: Dockerfile
+    container_name: launchpad_hardhat
+    ports:
+      - "8545:8545"
+    volumes:
+      - ./smart-contracts:/app
+    working_dir: /app
+    command: npx hardhat node
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: launchpad_backend
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: launchpad
+      DB_PASSWORD: password
+      DB_NAME: launchpad
+      RPC_URL: http://hardhat:8545
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      hardhat:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    working_dir: /app
+
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: launchpad_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    working_dir: /app
+
+volumes:
+  postgres_data:
+  redis_data:
