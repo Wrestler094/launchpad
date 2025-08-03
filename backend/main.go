@@ -3,22 +3,41 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
+
+	"launchpad-backend/config"
+	"launchpad-backend/handlers"
+	"launchpad-backend/middleware"
+	"launchpad-backend/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/cors"
 )
 
 func main() {
+	// Load configuration
+	cfg := config.Load()
+
+	// Initialize database
+	db, err := services.NewDatabase(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+	defer db.Close()
+
+	// Initialize handlers
+	authHandler := handlers.NewAuthHandler(db.DB, cfg.JWTSecret)
+	tokenHandler := handlers.NewTokenHandler(db.DB)
+	presaleHandler := handlers.NewPresaleHandler(db.DB)
+
 	// Initialize Gin router
 	r := gin.Default()
 
 	// Configure CORS
-	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:3000"}
-	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
-	config.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
-	r.Use(cors.New(config))
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowOrigins = []string{"http://localhost:3000"}
+	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
+	r.Use(cors.New(corsConfig))
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -33,58 +52,24 @@ func main() {
 	{
 		auth := api.Group("/auth")
 		{
-			auth.POST("/login", handleLogin)
+			auth.POST("/login", authHandler.Login)
 		}
 
 		token := api.Group("/token")
 		{
-			token.POST("/create", authMiddleware(), handleTokenCreate)
+			token.POST("/create", middleware.AuthMiddleware(cfg.JWTSecret), tokenHandler.CreateToken)
 		}
 
 		presale := api.Group("/presale")
 		{
-			presale.POST("/create", authMiddleware(), handlePresaleCreate)
-			presale.GET("/:id", handlePresaleGet)
-			presale.POST("/:id/participate", handlePresaleParticipate)
+			presale.POST("/create", middleware.AuthMiddleware(cfg.JWTSecret), presaleHandler.CreatePresale)
+			presale.GET("/:id", presaleHandler.GetPresale)
+			presale.POST("/:id/participate", presaleHandler.Participate)
 		}
 	}
 
-	// Get port from environment or default to 8080
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	log.Printf("Server starting on port %s", port)
-	if err := r.Run(":" + port); err != nil {
+	log.Printf("Server starting on port %s", cfg.Port)
+	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatal("Failed to start server:", err)
-	}
-}
-
-// Placeholder handlers - will be implemented in separate files
-func handleLogin(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented yet"})
-}
-
-func handleTokenCreate(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented yet"})
-}
-
-func handlePresaleCreate(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented yet"})
-}
-
-func handlePresaleGet(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented yet"})
-}
-
-func handlePresaleParticipate(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented yet"})
-}
-
-func authMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// TODO: Implement JWT verification
-		c.Next()
 	}
 }
