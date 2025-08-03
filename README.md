@@ -12,6 +12,17 @@ A decentralized token launchpad platform that allows users to create ERC-20 toke
 
 ## 🏗️ Architecture
 
+The project is organized into the following directories:
+
+```
+/launchpad
+├── /frontend          # Next.js React application
+├── /backend          # Go REST API server  
+├── /smart-contracts  # Solidity contracts & Hardhat
+├── /deploy          # Docker Compose configs
+└── /docs           # Documentation
+```
+
 ### Components
 
 1. **Smart Contracts** (Solidity + Hardhat)
@@ -19,13 +30,13 @@ A decentralized token launchpad platform that allows users to create ERC-20 toke
    - `Presale.sol`: Presale contract with caps, deadlines, and refunds
    - `LaunchpadFactory.sol`: Factory for deploying tokens and presales
 
-2. **Backend** (Go + Chi)
+2. **Backend** (`/backend` - Go + Chi)
    - REST API with JWT authentication
    - PostgreSQL database integration
    - Ethereum blockchain integration
    - MetaMask signature verification
 
-3. **Frontend** (Next.js + TypeScript)
+3. **Frontend** (`/frontend` - Next.js + TypeScript)
    - React components with Tailwind CSS
    - wagmi + viem for Web3 integration
    - Responsive design for all devices
@@ -63,10 +74,16 @@ GET  /api/public/presale/{id} - Public presale info for landing
    cd launchpad
    ```
 
-2. **Start with Docker Compose**
+2. **Start with Docker Compose (Recommended)**
    ```bash
    cd deploy
-   docker-compose up -d
+   docker compose up -d
+   ```
+
+   **Or use the root Makefile for convenience**
+   ```bash
+   make dev     # Start development environment
+   make help    # Show all available commands
    ```
 
 3. **Or run components individually:**
@@ -80,14 +97,15 @@ GET  /api/public/presale/{id} - Public presale info for landing
 
    **Backend (Go API)**
    ```bash
+   cd backend
    cp .env.example .env
    go mod tidy
-   go run cmd/server/main.go
+   make run
    ```
 
    **Frontend (Next.js)**
    ```bash
-   cd web
+   cd frontend
    npm install
    cp .env.example .env.local
    npm run dev
@@ -205,6 +223,14 @@ CREATE TABLE presales (
 
 ### Building Components
 
+**All Components (from root)**
+```bash
+make all      # Build everything
+make backend  # Build just the backend
+make frontend # Build just the frontend
+make clean    # Clean all build artifacts
+```
+
 **Smart Contracts**
 ```bash
 cd smart-contracts
@@ -215,13 +241,15 @@ npm run deploy
 
 **Backend**
 ```bash
-go build -o bin/server cmd/server/main.go
-./bin/server
+cd backend
+make server    # Build the server
+make run       # Build and run the server  
+make clean     # Clean build artifacts
 ```
 
 **Frontend**
 ```bash
-cd web
+cd frontend
 npm run build
 npm start
 ```

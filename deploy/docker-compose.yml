@@ -28,13 +28,13 @@ services:
 
   hardhat:
     build:
-      context: ./smart-contracts
+      context: ../smart-contracts
       dockerfile: Dockerfile
     container_name: launchpad_hardhat
     ports:
       - "8545:8545"
     volumes:
-      - ./smart-contracts:/app
+      - ../smart-contracts:/app
     working_dir: /app
     command: npx hardhat node
     healthcheck:
@@ -45,7 +45,7 @@ services:
 
   backend:
     build:
-      context: .
+      context: ../backend
       dockerfile: Dockerfile.backend
     container_name: launchpad_backend
     environment:
@@ -64,12 +64,12 @@ services:
       hardhat:
         condition: service_healthy
     volumes:
-      - .:/app
+      - ../backend:/app
     working_dir: /app
 
   frontend:
     build:
-      context: ./web
+      context: ../frontend
       dockerfile: Dockerfile
     container_name: launchpad_frontend
     environment:
@@ -79,7 +79,7 @@ services:
     depends_on:
       - backend
     volumes:
-      - ./web:/app
+      - ../frontend:/app
       - /app/node_modules
     working_dir: /app
 

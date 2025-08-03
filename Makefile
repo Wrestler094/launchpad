@@ -1,75 +1,36 @@
-# Check to see if we can use ash, in Alpine images, or default to bash.
-SHELL_PATH = /bin/ash
-SHELL = $(if $(wildcard $(SHELL_PATH)),/bin/ash,/bin/bash)
+# Launchpad Project Makefile
+# Provides convenient targets for building and running the entire project
 
-# ==============================================================================
-# Building containers
+.PHONY: help backend frontend smart-contracts all clean dev up down
 
-# $(shell git rev-parse --short HEAD)
-VERSION := 1.0
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-all: server
+backend: ## Build the Go backend
+	cd backend && make server
 
-server:
-	go build -ldflags "-X main.build=$(VERSION)" -o server ./cmd/server
+frontend: ## Install frontend dependencies and build
+	cd frontend && npm install && npm run build
 
-run: server
-	./server
+smart-contracts: ## Install smart contract dependencies and compile
+	cd smart-contracts && npm install && npm run compile
 
-run-help: server
-	./server --help
+all: smart-contracts backend frontend ## Build all components
 
-# ==============================================================================
-# Building containers
+clean: ## Clean all build artifacts
+	cd backend && make clean
+	cd frontend && rm -rf .next dist
+	cd smart-contracts && rm -rf artifacts cache
 
-build:
-	docker build \
-		-f Dockerfile.backend \
-		-t launchpad-backend:$(VERSION) \
-		--build-arg BUILD_REF=$(VERSION) \
-		--build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
-		.
+dev: ## Start development environment with Docker Compose
+	cd deploy && docker compose up -d
 
-# ==============================================================================
-# Running from within docker compose
+up: dev ## Alias for dev
 
-compose-up:
-	docker-compose -f deploy/docker-compose.yml up --detach --remove-orphans
+down: ## Stop development environment
+	cd deploy && docker compose down
 
-compose-down:
-	docker-compose -f deploy/docker-compose.yml down --remove-orphans
+logs: ## Show logs from all services
+	cd deploy && docker compose logs -f
 
-compose-logs:
-	docker-compose -f deploy/docker-compose.yml logs -f
-
-# ==============================================================================
-# Modules support
-
-deps-reset:
-	git checkout -- go.mod
-	go mod tidy
-	go mod vendor
-
-tidy:
-	go mod tidy
-	go mod vendor
-
-deps-list:
-	go list -m -u -mod=readonly all
-
-deps-upgrade:
-	go get -u -v ./...
-	go mod tidy
-	go mod vendor
-
-deps-cleancache:
-	go clean -modcache
-
-# ==============================================================================
-# Class Stuff
-
-clean:
-	rm -f server
-	go clean
-
-.PHONY: all server run run-help build compose-up compose-down compose-logs deps-reset tidy deps-list deps-upgrade deps-cleancache clean
+.DEFAULT_GOAL := help
